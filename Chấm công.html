@@ -1,0 +1,134 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8">
+  <title>Chấm công</title>
+  <script src="https://accounts.google.com/gsi/client" async defer></script>
+  <script src="https://cdn.jsdelivr.net/npm/jwt-decode/build/jwt-decode.min.js"></script>
+  <style>
+    body { font-family: Arial; padding: 20px; }
+    .admin-panel { display: none; margin-top: 30px; border-top: 1px solid #ccc; padding-top: 20px; }
+    .hidden { display: none; }
+  </style>
+</head>
+<body>
+
+  <h2>Hệ thống chấm công cộng đồng roleplay</h2>
+
+  <!-- Đăng nhập bằng Google -->
+  <div id="g_id_onload"
+       data-client_id="810443761018-duh61ce3cuis3r2k2jd2lod500lr1dn4.apps.googleusercontent.com"
+       data-callback="handleCredentialResponse"
+       data-auto_prompt="false">
+  </div>
+
+  <div class="g_id_signin" 
+       data-type="standard" 
+       data-size="large"></div>
+
+  <div id="user-info" class="hidden">
+    <p>Xin chào, <span id="username"></span>!</p>
+    <button onclick="startTracking()">Bắt đầu chấm công</button>
+    <button onclick="stopTracking()">Kết thúc chấm công</button>
+    <p>Thời gian chấm công: <span id="timeDisplay">0</span> phút</p>
+    <p>Tổng ROL nhận được: <span id="rolDisplay">0</span></p>
+  </div>
+
+  <!-- Admin Panel -->
+  <div class="admin-panel" id="admin-panel">
+    <h3>Quản trị hệ thống</h3>
+
+    <label for="lockUser">Khóa tài khoản:</label>
+    <select id="lockUser">
+      <option value="user1@example.com">user1@example.com</option>
+      <option value="user2@example.com">user2@example.com</option>
+    </select>
+    <button onclick="showLockPrompt()">Khóa</button>
+
+    <div id="lockForm" class="hidden">
+      <p><strong>Lý do:</strong></p>
+      <input type="text" id="reason">
+      <p><strong>Thời gian khóa (phút):</strong></p>
+      <input type="number" id="duration">
+      <button onclick="lockAccount()">Xác nhận khóa</button>
+    </div>
+
+    <h4>Bonus % ROL</h4>
+    <label for="bonusInput">Nhập % bonus:</label>
+    <input type="number" id="bonusInput" placeholder="Ví dụ: 20">
+    <button onclick="applyBonus()">Áp dụng bonus</button>
+  </div>
+
+  <script>
+    let userIsAdmin = false;
+    let startTime = null;
+    let currentUserEmail = null;
+
+    function handleCredentialResponse(response) {
+      const userData = jwt_decode(response.credential);
+      document.getElementById('username').innerText = userData.name;
+      document.getElementById('user-info').classList.remove('hidden');
+
+      currentUserEmail = userData.email;
+
+      // Admin check
+      if (userData.email === 'tmd415812@gmail.com') {
+        userIsAdmin = true;
+        document.getElementById('admin-panel').style.display = 'block';
+      }
+    }
+
+    function startTracking() {
+      startTime = Date.now();
+    }
+
+    function stopTracking() {
+      if (!startTime) return;
+      const endTime = Date.now();
+      const elapsedMin = Math.floor((endTime - startTime) / 60000);
+      document.getElementById('timeDisplay').innerText = elapsedMin;
+
+      const bonus = parseFloat(document.getElementById('bonusInput').value || 0);
+      const rol = Math.floor(elapsedMin * (1 + bonus / 100));
+      document.getElementById('rolDisplay').innerText = rol;
+
+      const data = {
+        email: currentUserEmail,
+        name: document.getElementById('username').innerText,
+        startTime: new Date(startTime).toISOString(),
+        endTime: new Date(endTime).toISOString(),
+        totalMinutes: elapsedMin,
+        bonusPercent: bonus,
+        totalROL: rol
+      };
+
+      // Gửi lên Google Apps Script
+      fetch('https://script.googleusercontent.com/macros/echo?user_content_key=AehSKLhGNl53P2HV_RBcKah12MM5uPpJIyxwhWypZ8zriwIRdJoUlqJe5KRypq06Ri78nHmmXI00ehAVIOkrGyskZyYhm5QFJyJtsC_DgzVAFNcNap6_Xwxh9GdJfMHqX46SBoZ6Culb4SkOcXSkX278zsPwOXLeFd_9dQyZ3pgsySbm8ClqkTsrQkSHATvOnb6hRxxCp_Fqmd02cjISX1r4Kydna7rWZIJ8uU1Nfp8pMDYlb2HBIrErtWco5b_U5GXdzTyfJOpu6Nq45ARYUesVhrM-_mvF6o10UiO4v-_w&lib=MxRWy38CupY6XSQheWkLzJKtCNaVfvo-P', {
+        method: 'POST',
+        body: JSON.stringify(data),
+        headers: { 'Content-Type': 'application/json' }
+      })
+      .then(res => res.text())
+      .then(txt => alert("Kết quả: " + txt));
+    }
+
+    function showLockPrompt() {
+      document.getElementById('lockForm').classList.remove('hidden');
+    }
+
+    function lockAccount() {
+      const user = document.getElementById('lockUser').value;
+      const reason = document.getElementById('reason').value;
+      const duration = document.getElementById('duration').value;
+      alert(`Đã khóa ${user} trong ${duration} phút. Lý do: ${reason}`);
+      // Gửi thông tin khóa tài khoản sau (nếu cần)
+    }
+
+    function applyBonus() {
+      const bonus = document.getElementById('bonusInput').value;
+      alert(`Bonus ${bonus}% đã được áp dụng`);
+    }
+  </script>
+
+</body>
+</html>
